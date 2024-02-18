@@ -17,6 +17,7 @@ stdscr = curses.initscr()
 curses.noecho()
 curses.cbreak()
 stdscr.keypad(True)
+stdscr.nodelay(1)
 
 # Set up logging
 if not os.path.exists('logs'):
@@ -30,6 +31,7 @@ def cleanup():
     stdscr.keypad(False)
     curses.echo()
     curses.endwin()
+    curses.curs_set(0)
 
 
 def main():
@@ -49,15 +51,20 @@ def main():
             container.add_component(Label, [day])
             container.add_component(Combobox, [activity_labels])
 
+        # Add a generate button
+        container.add_component(Button, ["Generate", container.randomise_activities])
+
         # Main loop
         while True:
             stdscr.clear()
+            c = stdscr.getch()
+            container.handle_input(c)
             container.update()
             container.render()
-            stdscr.refresh()
-            c = stdscr.getch()
             if c == ord('q'):
                 break
+
+            stdscr.refresh()
 
             # Sleep to avoid flickering
             sleep(0.1)
