@@ -15,6 +15,8 @@ class Colours:
         curses.init_pair(6, curses.COLOR_YELLOW, curses.COLOR_BLACK)
         curses.init_pair(7, curses.COLOR_CYAN, curses.COLOR_BLACK)
         curses.init_pair(8, curses.COLOR_MAGENTA, curses.COLOR_BLACK)
+        curses.init_pair(9, curses.COLOR_WHITE, curses.COLOR_BLUE)
+        curses.init_pair(10, curses.COLOR_WHITE, curses.COLOR_RED)
 
         # Dictionary to hold the colours
         self.colours = {
@@ -25,7 +27,9 @@ class Colours:
             "blue": 5,
             "yellow": 6,
             "cyan": 7,
-            "magenta": 9
+            "magenta": 8,
+            "highlight": 9,
+            "highlight_red": 10
         }
 
     def get_colour(self, colour):

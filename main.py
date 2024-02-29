@@ -8,16 +8,8 @@ from time import sleep
 from datetime import datetime
 from components import Container, Label, Combobox, Button
 from activity import Activity, read_activities, write_activities
+from states import StateMain
 
-# Globals
-filename = 'activities.txt'
-
-# Initialise curses
-stdscr = curses.initscr()
-curses.noecho()
-curses.cbreak()
-stdscr.keypad(True)
-stdscr.nodelay(1)
 
 # Set up logging
 if not os.path.exists('logs'):
@@ -36,38 +28,25 @@ def cleanup():
 
 def main():
     try:
-        container = Container(stdscr)
-        container.add_component(Label, ["Welcome to Week Planner!"])
-
-        # Get activities so we can make comboboxes for them
-        activities = read_activities(filename)
-
-        activity_labels = [activity.get_activity() for activity in activities]
-
-        logging.debug(f"Activities: {activity_labels}")
-
-        # Create a combobox for each day of the week
-        for day in calendar.day_name:
-            container.add_component(Label, [day])
-            container.add_component(Combobox, [activity_labels])
-
-        # Add a generate button
-        container.add_component(Button, ["Generate", container.randomise_activities])
+        # Instantiate the main state
+        state = StateMain(stdscr)
 
         # Main loop
         while True:
-            stdscr.clear()
+            # Set curses x/y to 0
+            stdscr.move(0, 0)
             c = stdscr.getch()
-            container.handle_input(c)
-            container.update()
-            container.render()
+            state.handle_input(c)
+            state_change = state.update()
+            state.render()
             if c == ord('q'):
                 break
 
+            if state_change:
+                state = state_change
+
             stdscr.refresh()
 
-            # Sleep to avoid flickering
-            sleep(0.1)
     except Exception as e:
         logging.exception(e)
 
@@ -75,4 +54,12 @@ def main():
 
 
 if __name__ == "__main__":
+    # Initialise curses
+    stdscr = curses.initscr()
+    curses.noecho()
+    curses.cbreak()
+    stdscr.keypad(True)
+    stdscr.nodelay(1)
+    curses.curs_set(0)
+
     main()

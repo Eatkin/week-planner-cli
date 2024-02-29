@@ -3,6 +3,7 @@ import curses
 import logging
 import random
 from colours import Colours
+from activity import read_activities
 
 class Component:
     def __init__(self):
@@ -81,7 +82,20 @@ class Container(Component):
         """Loop through all the comboboxes and set a random activity"""
         for component in self.components:
             if isinstance(component, Combobox):
-                component.index = random.randint(0, len(component.items) - 1)
+                # These are activites so have priorities
+                # This is a bespoke solution rather than a generic one
+                # We'll create a new list of choices which lists each activity as many times as its priority
+                # Higher priority activities will be listed more times
+                # Thus have a higher chance of being selected
+                activities_filename = 'activities.txt'
+                activities = read_activities(activities_filename)
+                choices = []
+                for activity in activities:
+                    for i in range(activity.priority):
+                        choices.append(activity.choice)
+
+                choice = random.choice(choices)
+                component.index = component.items.index(choice)
 
 class Label(Component):
     """A simple label to display text"""
@@ -100,7 +114,7 @@ class Label(Component):
         _, t_width = self.stdscr.getmaxyx()
         padding = (t_width - len(self.text) - 2) // 2
         self.stdscr.addstr(" " * padding)
-        self.stdscr.addstr(f"⌡{self.text}⌠", self.colours.get_colour("white"))
+        self.stdscr.addstr(f"⌡{self.text}⌠", self.colours.get_colour("green"))
 
 class Combobox(Component):
     """A simple combo box allowing left/right navigation to select an item"""
@@ -177,7 +191,9 @@ class Button(Component):
         """Render the button to the curses window"""
         col = self.colours.get_colour("black")
         if self.selected:
-            col = self.colours.get_colour("white")
+            col = self.colours.get_colour("highlight")
+            if self.text == "Quit":
+                col = self.colours.get_colour("highlight_red")
 
         _, t_width = self.stdscr.getmaxyx()
         padding = (t_width - len(self.text) - 1) // 2
