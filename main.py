@@ -44,6 +44,7 @@ def main():
 
             if state_change:
                 state = state_change
+                stdscr.clear()
 
             stdscr.refresh()
 

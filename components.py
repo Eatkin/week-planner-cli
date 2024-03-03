@@ -78,25 +78,6 @@ class Container(Component):
         if self.components[-1].selectable and not any(c.selected for c in self.components):
             self.components[-1].selected = True
 
-    def randomise_activities(self):
-        """Loop through all the comboboxes and set a random activity"""
-        for component in self.components:
-            if isinstance(component, Combobox):
-                # These are activites so have priorities
-                # This is a bespoke solution rather than a generic one
-                # We'll create a new list of choices which lists each activity as many times as its priority
-                # Higher priority activities will be listed more times
-                # Thus have a higher chance of being selected
-                activities_filename = 'activities.txt'
-                activities = read_activities(activities_filename)
-                choices = []
-                for activity in activities:
-                    for i in range(activity.priority):
-                        choices.append(activity.choice)
-
-                choice = random.choice(choices)
-                component.index = component.items.index(choice)
-
 class Label(Component):
     """A simple label to display text"""
     def __init__(self, text, stdscr, container):
@@ -181,7 +162,10 @@ class Button(Component):
         if key == -1:
             return
         if key == ord("\n"):
+            logging.info(f"Button pressed: {self.text}")
             self.action()
+            # Clear input buffer
+            curses.flushinp()
 
     def update(self):
         """Perform the action when key is pressed and button is selected"""
