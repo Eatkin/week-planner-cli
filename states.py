@@ -5,8 +5,8 @@ import os
 import logging
 from datetime import datetime
 
-from activity import read_activities
-from components import Container, Label, Combobox, Button
+from activity import read_activities, write_activities
+from components import Container, Label, Combobox, Button, MenuList
 
 state_history = []
 
@@ -95,6 +95,7 @@ class StateMain(State):
         buttons = [
             ("Week Planner", lambda: self.advance_state(StateWeekPlanner(stdscr))),
             ("Random Activity", lambda: self.advance_state(StateRandomActivity(stdscr))),
+            ("Config", lambda: self.advance_state(StateConfig(stdscr))),
             ("Quit", lambda: exit(1))
         ]
         for b in buttons:
@@ -166,5 +167,102 @@ class StateRandomActivity(State):
         self.container = Container(stdscr)
         self.container.add_component(Label, ["Welcome to Random Activity!"])
         self.container.add_component(Label, [f"Your random activity is: {self.get_random_activity()}"])
+        self.container.add_component(Button, ["I don't want to do that", lambda: self.reroll_activity()])
         self.container.add_component(Button, ["Back", lambda: self.regress_state()])
-        self.container.add_component(Button, ["Quit", lambda: exit(1)])
+
+    def reroll_activity(self):
+        """Rerolls the activity"""
+        self.container.components[1].text = f"Your random activity is: {self.get_random_activity()}"
+
+
+class StateConfig(State):
+    def __init__(self, stdscr):
+        """Initialise the main state"""
+        super().__init__(stdscr)
+        self.container = Container(stdscr)
+        self.container.add_component(Label, ["Welcome to Config!"])
+        # Edit activities button
+        self.container.add_component(Button, ["Edit Activities", lambda: self.advance_state(StateEditActivities(stdscr))])
+        # And a week config button
+        self.container.add_component(Button, ["Week Config", lambda: self.advance_state(StateWeekConfig(stdscr))])
+        self.container.add_component(Button, ["Back", lambda: self.regress_state()])
+
+class StateEditActivities(State):
+    def __init__(self, stdscr):
+        """Initialise the edit activities state"""
+        super().__init__(stdscr)
+        # We use a list menu to display the activities here
+        # So we need a list of activities
+        activities = read_activities('activities.txt')
+        activities = [activity.get_activity() for activity in activities]
+        functions = [lambda activity=activity: self.advance_state(StateEditActivity(stdscr, activity)) for activity in activities]
+        # Add a back button
+        activities.append("Back")
+        functions.append(lambda: self.regress_state())
+        # Now make the list menu
+        self.list_menu = MenuList(stdscr, activities, functions, "Welcome to Edit Activities!")
+
+    def handle_input(self, key):
+        callback = self.list_menu.handle_input(key)
+        if callback:
+            callback()
+
+    def render(self):
+        self.list_menu.render()
+
+class StateWeekConfig(State):
+    def __init__(self, stdscr):
+        """Initialise the main state"""
+        super().__init__(stdscr)
+        self.container = Container(stdscr)
+        self.container.add_component(Label, ["Welcome to Week Config!"])
+        self.container.add_component(Button, ["Back", lambda: self.regress_state()])
+
+class StateEditActivity(State):
+    def __init__(self, stdscr, activity):
+        """Initialise the main state"""
+        super().__init__(stdscr)
+        # Get all the activities
+        logging.info(f"Activity to edit: {activity}")
+        self.activities = read_activities('activities.txt')
+        # Find our priority
+        for a in self.activities:
+            if a.get_activity() == activity:
+                priority = a.priority
+                break
+        self.activity = activity
+        self.container = Container(stdscr)
+        self.container.add_component(Label, ["Welcome to Edit Activity!"])
+        self.container.add_component(Label, [f"Editing activity: {activity}"])
+        self.container.add_component(Combobox, [["Ignore", "Low", "Medium", "High", "Very High", "Ultra High", "Mega High", "Giga High", "Tera High", "Peta High", "Exa High"]])
+        # Set the index of the combobox to the priority
+        self.container.components[-1].index = priority
+        # Add a delete activity button
+        self.container.add_component(Button, ["Delete Activity", lambda: self.delete_activity()])
+        # Add a save button
+        self.container.add_component(Button, ["Save", lambda: self.save_activity()])
+        self.container.add_component(Button, ["Back", lambda: self.regress_state()])
+
+    def delete_activity(self):
+        """Removes acitivty from activities.txt"""
+        # Loop over activities and remove the one we want
+        for a in self.activities:
+            if a.get_activity() == self.activity:
+                self.activities.remove(a)
+                break
+
+        # Write activities back to file
+        write_activities('activities.txt', self.activities)
+
+        # Then regress the state
+        self.regress_state()
+
+    def save_activity(self):
+        """Alter the priority of the activity"""
+        for a in self.activities:
+            if a.get_activity() == self.activity:
+                a.priority = self.container.components[2].index
+                break
+
+        # Write activities back to file
+        write_activities('activities.txt', self.activities)

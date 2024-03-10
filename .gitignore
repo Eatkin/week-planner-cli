@@ -2,3 +2,4 @@ todo
 __pycache__/*
 activities.txt
 logs/*
+*.txt
