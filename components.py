@@ -20,6 +20,14 @@ class Component:
         """Handle input for the component"""
         pass
 
+    def on_select(self):
+        """Perform an action when the component is selected"""
+        pass
+
+    def on_deselect(self):
+        """Perform an action when the component is deselected"""
+        pass
+
 class Container(Component):
     """A simple container for other UI components"""
     def __init__(self, stdscr):
@@ -47,9 +55,12 @@ class Container(Component):
         for i, component in enumerate(self.components):
             if component.selected:
                 component.selected = False
+                component.on_deselect()
                 while self.components[(i + v_movement) % len(self.components)].selectable == False:
                     v_movement += v_movement // abs(v_movement)
-                self.components[(i + v_movement) % len(self.components)].selected = True
+                next_component = self.components[(i + v_movement) % len(self.components)]
+                next_component.selected = True
+                next_component.on_select()
                 break
 
         # Handle input for the selected component
@@ -369,3 +380,46 @@ class MenuList():
             return min
         else:
             return selection
+
+class TextInput(Component):
+    """A simple text input to allow text entry"""
+    def __init__(self, stdscr, container):
+        """Initialise the text input with a curses window"""
+        super().__init__()
+        self.selectable = True
+        self.selected = False
+        self.text = ""
+        self.stdscr = stdscr
+        self.container = container
+        # Create colour object
+        self.colours = Colours()
+
+    def handle_input(self, key):
+        """Handle input for the text input, adding characters to the text"""
+        if key == -1:
+            return
+        if key == curses.ascii.ESC:
+            self.text = ""
+        elif key == curses.ascii.BS:
+            self.text = self.text[:-1]
+        elif key == ord("\n"):
+            logging.info(f"Text input: {self.text}")
+        elif key < 256:
+            self.text += chr(key)
+
+    def render(self):
+        """Render the text input to the curses window"""
+        col = self.colours.get_colour("black")
+        if self.selected:
+            col = self.colours.get_colour("highlight")
+
+        # Draw this if selected
+        if self.selected:
+            prepend = "> "
+        else:
+            prepend = ""
+
+        _, t_width = self.stdscr.getmaxyx()
+        padding = (t_width - len(self.text) - len(prepend) - 1) // 2
+        self.stdscr.addstr(" " * padding)
+        self.stdscr.addstr(f"{prepend}{self.text}", col)

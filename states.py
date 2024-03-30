@@ -5,8 +5,8 @@ import os
 import logging
 from datetime import datetime
 
-from activity import read_activities, write_activities
-from components import Container, Label, Combobox, Button, MenuList
+from activity import Activity, read_activities, write_activities
+from components import *
 
 state_history = []
 
@@ -19,9 +19,16 @@ class State:
 
     def update(self):
         if self.next_state:
+            regressing = False
+            if state_history[-1] == self.next_state:
+                regressing = True
             # Store this state so we can clear it
             state = self.next_state
             self.next_state = None
+
+            if regressing:
+                state.on_regress()
+
             return state
         return None
 
@@ -39,6 +46,9 @@ class State:
     def regress_state(self):
         state_history.pop()
         self.next_state = state_history[-1]
+
+    def on_regress(self):
+        pass
 
     def get_random_activity(self):
         activities = read_activities('activities.txt')
@@ -181,6 +191,8 @@ class StateConfig(State):
         super().__init__(stdscr)
         self.container = Container(stdscr)
         self.container.add_component(Label, ["Welcome to Config!"])
+        # New activity
+        self.container.add_component(Button, ["New Activity", lambda: self.advance_state(StateNewActivity(stdscr))])
         # Edit activities button
         self.container.add_component(Button, ["Edit Activities", lambda: self.advance_state(StateEditActivities(stdscr))])
         # And a week config button
@@ -193,14 +205,7 @@ class StateEditActivities(State):
         super().__init__(stdscr)
         # We use a list menu to display the activities here
         # So we need a list of activities
-        activities = read_activities('activities.txt')
-        activities = [activity.get_activity() for activity in activities]
-        functions = [lambda activity=activity: self.advance_state(StateEditActivity(stdscr, activity)) for activity in activities]
-        # Add a back button
-        activities.append("Back")
-        functions.append(lambda: self.regress_state())
-        # Now make the list menu
-        self.list_menu = MenuList(stdscr, activities, functions, "Welcome to Edit Activities!")
+        self.create_list_menu()
 
     def handle_input(self, key):
         callback = self.list_menu.handle_input(key)
@@ -210,12 +215,45 @@ class StateEditActivities(State):
     def render(self):
         self.list_menu.render()
 
+    def create_list_menu(self):
+        activities = read_activities('activities.txt')
+        activities = [activity.get_activity() for activity in activities]
+        functions = [lambda activity=activity: self.advance_state(StateEditActivity(self.stdscr, activity)) for activity in activities]
+        # Add a back button
+        activities.append("Back")
+        functions.append(lambda: self.regress_state())
+        # Now make the list menu
+        self.list_menu = MenuList(self.stdscr, activities, functions, "Welcome to Edit Activities!")
+
+    def update_list_menu(self):
+        # Similar to above but overwrite the functions and activities for the menu
+        activities = read_activities('activities.txt')
+        activities = [activity.get_activity() for activity in activities]
+        functions = [lambda activity=activity: self.advance_state(StateEditActivity(self.stdscr, activity)) for activity in activities]
+        # Add a back button
+        activities.append("Back")
+        functions.append(lambda: self.regress_state())
+
+        self.list_menu.functions = functions
+        self.list_menu.items = activities
+
+        if self.list_menu.selected > 0:
+            self.list_menu.selected -= 1
+
+
+    def on_regress(self):
+        """Refresh the list of functions"""
+        self.update_list_menu()
+
+
+
 class StateWeekConfig(State):
     def __init__(self, stdscr):
         """Initialise the main state"""
         super().__init__(stdscr)
         self.container = Container(stdscr)
         self.container.add_component(Label, ["Welcome to Week Config!"])
+        self.container.add_component(Label, ["Coming soon! (Probably not actually I cba lol)"])
         self.container.add_component(Button, ["Back", lambda: self.regress_state()])
 
 class StateEditActivity(State):
@@ -254,7 +292,7 @@ class StateEditActivity(State):
         # Write activities back to file
         write_activities('activities.txt', self.activities)
 
-        # Then regress the state
+        # Then regress the state - why doesn't this work?
         self.regress_state()
 
     def save_activity(self):
@@ -266,3 +304,31 @@ class StateEditActivity(State):
 
         # Write activities back to file
         write_activities('activities.txt', self.activities)
+
+class StateNewActivity(State):
+    def __init__(self, stdscr):
+        """Initialise the new activity state"""
+        super().__init__(stdscr)
+        self.container = Container(stdscr)
+        self.container.add_component(Label, ["Welcome to New Activity!"])
+        self.container.add_component(Label, ["Enter the name of the new activity:"])
+        self.container.add_component(TextInput, [])
+        self.container.add_component(Label, ["Enter the priority of the new activity:"])
+        self.container.add_component(Combobox, [["Ignore", "Low", "Medium", "High", "Very High", "Ultra High", "Mega High", "Giga High", "Tera High", "Peta High", "Exa High"]])
+        self.container.add_component(Button, ["Create Activity", lambda: self.create_activity()])
+        self.container.add_component(Button, ["Back", lambda: self.regress_state()])
+
+    def create_activity(self):
+        """Creates a new activity and adds it to activities.txt"""
+        # Get the name of the activity
+        name = self.container.components[2].text
+        # Get the priority of the activity
+        priority = self.container.components[4].index
+        # Read the activities
+        activities = read_activities('activities.txt')
+        # Add the new activity
+        activities.append(Activity(name, priority))
+        # Write the activities back to file
+        write_activities('activities.txt', activities)
+        # Regress the state
+        self.regress_state()
